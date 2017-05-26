@@ -3,8 +3,10 @@ const router = express.Router();
 const cheerio = require('cheerio');
 const Crawler = require('../utils/Crawler');
 const Novel = require('../models/Novel');
+const User = require('../models/User');
+const ReadingList = require('../models/ReadingList');
 
-const getList = async (req, res, next) => {  // 获取搜索列表
+const getSearchList = async (req, res, next) => {  // 获取搜索列表
   const { name } = req.query;
   //笔趣库搜索网站
   const url = `http://zhannei.baidu.com/cse/search?s=2041213923836881982&q=${name}`
@@ -36,45 +38,101 @@ const getList = async (req, res, next) => {  // 获取搜索列表
     }
     arr.push(json)
   }
-
-  tasks = arr.map(item => new Promise((resolve) => {
-    const data = {
-      name: item.title,
-      image_url: item.img,
-      url: item.url,
-      introduction: item.introduction,
-      author: item.author,
-      type: item.type,
-    };
-    try {
-      const instance = new Novel(data);  // eslint-disable-line
-      instance.save((err, item) => {
-        (err ? console.error : console.log)(`insert labels ${err ? 'failed' : 'success'}`, JSON.stringify({ item, err }));
-
-        resolve(instance);
-      });
-    } catch (e) {
-      console.error('An unknown error occurred when the template was created:', { e, data });
-      resolve();
-    }
-  }));
-
-  Promise.all(tasks).then(() => {
-    console.log('novel sync completed');
-    res.jsonp({
-      status: 200,
-      data: arr
-    });
-    done();
-  }).catch(e => {
-    console.error('novel', e);
-    done();
+  res.jsonp({
+    status: 200,
+    data: arr
   });
 }
+
+const joinBookshelf = async (req, res, next) => {  // 将图书添加到书架
+  const { uid, name, author, type, introduction, image_url, url } = req.query;
+  let nn = await Novel.findOne({ name, is_true: true });
+  if (!nn) {
+    const novel = new Novel({
+      name,
+      author,
+      type,
+      introduction,
+      image_url,
+      url,
+      update_time: new Date(),
+    });
+    await novel.save(err => {
+      if (err) {
+        return res.send({
+          status: 500,
+          msg: 'Failure to acquire novel information!'
+        });
+      }
+    });
+    nn = await Novel.findOne({ name, is_true: true });
+  }
+  const reading = new ReadingList({});
+  const rr = await reading.save();
+  const uu = await User.findOneAndUpdate(
+    { _id: uid },
+    {
+      $addToSet: {
+        novels: {
+          novel: nn._id,
+          reading: rr._id,
+        }
+      }
+    }
+  );
+  if (uu) {
+    return res.jsonp({
+      status: 200,
+      msg: 'join bookshelf success!'
+    });
+  }
+  res.jsonp({
+    status: 500,
+    msg: 'join bookshelf faile!'
+  });
+};
+
+const getBookshelfList = async (req, res, next) => {  // 拉取书架图书列表
+  const { uid } = req.query;
+  const nn = await User.findOne({ _id: uid, is_true: true })
+    .populate([
+      {
+        path: 'novels.novel',
+        select: '_id name author image_url update_time',
+      },
+      {
+        path: 'novels.reading',
+        select: 'progress',
+      }
+    ])
+    .exec();
+  if (nn) {
+    return res.jsonp({
+      status: 200,
+      data: nn.novels.map(item => ({
+        id: item.novel._id,
+        name: item.novel.name,
+        author: item.novel.author,
+        image_url: item.novel.image_url,
+        update_time: item.novel.update_time,
+        progress: item.reading.progress,
+      }))
+    });
+  }
+  res.jsonp({
+    status: 500,
+    msg: 'Failure to acquire novel information!',
+  });
+};
+
 module.exports = {
-  getList,
+  getSearchList,
+  joinBookshelf,
+  getBookshelfList,
 
   init(router) {
-    router.get('/novel/search', getList);
+    router.get('/novel/search', getSearchList);
+    router.get('/novel/joinbookshelf', joinBookshelf);
+    router.get('/novel/list', getBookshelfList);
   },
 };

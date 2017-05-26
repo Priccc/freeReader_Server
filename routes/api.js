@@ -6,6 +6,7 @@ const _ = require('lodash');
 const express = require('express');
 const routes = [
   require('../controllers/Novel'),
+  require('../controllers/User'),
 ];
 
 // Setup Route Bindings
