@@ -19,12 +19,15 @@
     "eslint-plugin-standard": "^3.0.1",
     "express": "~4.15.2",
     "http": "0.0.0",
+    "iconv-lite": "^0.4.17",
     "jade": "~1.11.0",
     "lodash": "^4.17.4",
     "mongodb": "^2.2.27",
     "mongoose": "^4.10.2",
     "morgan": "~1.8.1",
     "nodemon": "^1.11.0",
+    "react-native-swRefresh": "^1.2.3",
+    "request": "^2.81.0",
     "serve-favicon": "~2.4.2"
   }
 }

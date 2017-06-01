@@ -30,13 +30,12 @@ const register = (req, res, next) => {
 
 // 用户登录
 const login = async (req, res, next) => {
-  const { username, password } = req.query;
+  const { username, password } = req.body;
   await User.findOne({
     name: username,
     password: tools.getSha1(password),
     is_true: true,
   }, (err, uu) => {
-    console.log(uu);
     if (err && !uu) {
       return res.json({
         status: 500,

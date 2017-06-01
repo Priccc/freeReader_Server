@@ -7,6 +7,7 @@ const express = require('express');
 const routes = [
   require('../controllers/Novel'),
   require('../controllers/User'),
+  require('../controllers/Chapter'),
 ];
 
 // Setup Route Bindings

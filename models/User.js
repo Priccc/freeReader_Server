@@ -12,16 +12,16 @@ const UserSchema = new Schema({
     require: true //不可为空约束
   },
   head_portrait: { type: String },
-  novels: [{
-    novel: {
-      type: Schema.Types.ObjectId,
-      ref: 'Novel',
-    },
-    reading: {
-      type: Schema.Types.ObjectId,
-      ref: 'ReadingList',
-    },
-  }],
+  // novels: [{
+  //   novel: {
+  //     type: Schema.Types.ObjectId,
+  //     ref: 'Novel',
+  //   },
+  //   reading: {
+  //     type: Schema.Types.ObjectId,
+  //     ref: 'ReadingList',
+  //   },
+  // }],
   // novel_list: [{
   //   type: Schema.Types.ObjectId,
   //   ref: 'Novel',
@@ -30,7 +30,7 @@ const UserSchema = new Schema({
   //   type: Schema.Types.ObjectId,
   //   ref: 'ReadingList',
   // }],
-  last_visit_time: { type: Date },
+  // last_visit_time: { type: Date },
   phone: {
     type: String,
     unique: true,//不可重复约束

@@ -12,11 +12,16 @@ const NovelSchema = new Schema({
   introduction: { type: String },
   author: { type: String },
   type: { type: String },
-  chapter: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Chapter',
-  }],
+  // chapter: [{
+  //   _id: {
+  //     type: Schema.Types.ObjectId,
+  //     ref: 'Chapter',
+  //   },
+  //   number: Number,
+  // }],
   update_time: { type: Date },
+  countChapter: { type: String },
+  lastChapterTitle: { type: String },
   is_true: {
     type: Boolean,
     default: true,

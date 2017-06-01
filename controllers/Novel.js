@@ -4,7 +4,8 @@ const cheerio = require('cheerio');
 const Crawler = require('../utils/Crawler');
 const Novel = require('../models/Novel');
 const User = require('../models/User');
-const ReadingList = require('../models/ReadingList');
+const Chapter = require('../models/Chapter');
+const BookShelf = require('../models/BookShelf');
 
 const getSearchList = async (req, res, next) => {  // 获取搜索列表
   const { name } = req.query;
@@ -29,8 +30,8 @@ const getSearchList = async (req, res, next) => {  // 获取搜索列表
     const author = $('.result-game-item-info span').eq(i * 6 + 1).text().replace(/\s/g, "")
     const type = $('.result-game-item-info span').eq(i * 6 + 3).text()
     let json = {
-      title: title,
-      img: img,
+      name: title,
+      image_url: img,
       url: url,
       introduction: introduction,
       author: author,
@@ -45,7 +46,9 @@ const getSearchList = async (req, res, next) => {  // 获取搜索列表
 }
 
 const joinBookshelf = async (req, res, next) => {  // 将图书添加到书架
-  const { uid, name, author, type, introduction, image_url, url } = req.query;
+  const { uid } = req.query;
+  const { name, author, type, introduction, image_url, url } = req.body;
+  await Novel.remove({ is_true: false });
   let nn = await Novel.findOne({ name, is_true: true });
   if (!nn) {
     const novel = new Novel({
@@ -56,6 +59,7 @@ const joinBookshelf = async (req, res, next) => {  // 将图书添加到书架
       image_url,
       url,
       update_time: new Date(),
+      is_true: false,
     });
     await novel.save(err => {
       if (err) {
@@ -65,22 +69,52 @@ const joinBookshelf = async (req, res, next) => {  // 将图书添加到书架
         });
       }
     });
-    nn = await Novel.findOne({ name, is_true: true });
-  }
-  const reading = new ReadingList({});
-  const rr = await reading.save();
-  const uu = await User.findOneAndUpdate(
-    { _id: uid },
-    {
-      $addToSet: {
-        novels: {
-          novel: nn._id,
-          reading: rr._id,
-        }
-      }
+
+    try {
+      var $ = await Crawler.getHtml(url)
+    } catch (e) {
+      return res.jsonp({
+        data: 500,
+        msg: e,
+      });
     }
-  );
-  if (uu) {
+
+    const novelId = novel._id
+
+    await Crawler.getNovel($, novelId)
+
+    nn = await Novel.findOne({ name });
+
+    try {
+      var lastChapter = await Chapter.getLastTitle(novelId)
+      var count = await Chapter.getCount(novelId)
+    } catch (e) {
+      return res.jsonp({
+        data: 500,
+        msg: e,
+      });
+    }
+
+    nn.lastChapterTitle = lastChapter[0].title;
+    nn.countChapter = count;
+    nn.is_true = true;
+
+    try {
+      await nn.save()
+    } catch (e) {
+      return res.jsonp({
+        data: 500,
+        msg: e,
+      });
+    }
+  }
+  const bksf = new BookShelf({
+    user: uid,
+    novel: nn._id,
+  });
+
+  const bb = await bksf.save();
+  if (bb) {
     return res.jsonp({
       status: 200,
       msg: 'join bookshelf success!'
@@ -94,28 +128,23 @@ const joinBookshelf = async (req, res, next) => {  // 将图书添加到书架
 
 const getBookshelfList = async (req, res, next) => {  // 拉取书架图书列表
   const { uid } = req.query;
-  const nn = await User.findOne({ _id: uid, is_true: true })
-    .populate([
-      {
-        path: 'novels.novel',
-        select: '_id name author image_url update_time',
-      },
-      {
-        path: 'novels.reading',
-        select: 'progress',
-      }
-    ])
-    .exec();
-  if (nn) {
+
+  const bb = await BookShelf.find({ user: uid })
+   .populate({
+       path: 'novel'
+     })
+   .exec();
+  if (bb) {
     return res.jsonp({
       status: 200,
-      data: nn.novels.map(item => ({
+      data: bb.map(item => ({
         id: item.novel._id,
         name: item.novel.name,
         author: item.novel.author,
         image_url: item.novel.image_url,
+        type: item.novel.type,
         update_time: item.novel.update_time,
-        progress: item.reading.progress,
+        progress: item.progress,
       }))
     });
   }
@@ -125,14 +154,55 @@ const getBookshelfList = async (req, res, next) => {  // 拉取书架图书列�
   });
 };
 
+const getNovelDirectory = async (req, res, next) => {
+  const { nid } = req.query;
+  let results = [];
+  const options = {
+    novel: nid,
+    attributes: ['title', 'content', 'number'],
+    order: 1
+  }
+  try {
+    results = await Chapter.getDirectory(options)
+  } catch (err) {
+
+  }
+  res.jsonp({
+    status: 200,
+    data: results,
+  });
+};
+
+const progress = async (req, res, next) => {
+  const { nid, num } = req.query;
+
+  if (nid && !num) {
+    const bb = await BookShelf.findOne({ novel: nid });
+    res.jsonp({
+      status: 200,
+      data: bb,
+    });
+  } else if (num) {
+    const bb = await BookShelf.findOneAndUpdate({ novel: nid }, { $set: { 'progress': num.toString() }});
+    res.jsonp({
+      status: 200,
+      data: 'success',
+    });
+  }
+};
+
 module.exports = {
   getSearchList,
   joinBookshelf,
   getBookshelfList,
+  getNovelDirectory,
+  progress,
 
   init(router) {
     router.get('/novel/search', getSearchList);
-    router.get('/novel/joinbookshelf', joinBookshelf);
+    router.post('/novel/joinbookshelf', joinBookshelf);
     router.get('/novel/list', getBookshelfList);
+    router.get('/novel/directory', getNovelDirectory);
+    router.get('/novel/progress', progress);
   },
 };
