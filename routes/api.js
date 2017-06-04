@@ -17,9 +17,9 @@ module.exports = function (app) {
   });
 
   const router = express.Router();
-  _.map(routes, (controller) => {
+  _.map(routes, (controller) => {  // 加载所有路由
     controller.init(router);
   });
 
-  app.use('/api', router);
+  app.use('/api', router); // 为所有路由加上路由标志路径
 };

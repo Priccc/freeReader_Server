@@ -14,11 +14,7 @@ const ChapterSchema = new Schema({
   number: { type: Number },
   postfix: { type: String },
   content: { type: String },
-  novel_id: {
-    type: Schema.Types.ObjectId,
-    ref: 'Novel',
-  },
-    is_true: {
+  is_true: {
     type: Boolean,
     default: true,
   },
